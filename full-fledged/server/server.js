@@ -2,41 +2,42 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var app = express();
 var _ = require('lodash');
+var morgan = require('morgan');
 
-// express.static will serve everything
-// with in client as a static resource
-// also, it will server the index.html on the
-// root of that directory on a GET to '/'
+app.use(morgan('dev')) 
 app.use(express.static('client'));
-
-// body parser makes it possible to post JSON to the server
-// we can accss data we post on as req.body
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
+app.param('id', function(req,res,next,id){
+    var lion = _.find(lions,{id: parseInt(req.params.id)});
+    req.lion = lion;
+    next();
+})
+
+var incrementIdMiddleware = function(req,res,next){
+    var lion = req.body;
+    id++;
+    lion.id = id;
+    next();
+}
 
 var lions = [];
 var id = 0;
 
-// TODO: make the REST routes to perform CRUD on lions
-app.get("/lions", function(req,res){
+app.get("/lions", function(req,res,next){
     res.send(lions);
+    // next(new Error("Nope"));
 })
 
 app.get("/lions/:id", function(req,res){
-    console.log('lions',lions)
-    var lion = _.find(lions,{id: parseInt(req.params.id)});
-    console.log(lion);
-    res.json(lion || {});
+    console.log('lions',req)
+    res.json(req.lion || {});
 })
 
-app.post("/lions", function(req,res){
-    var lion = req.body;
-    id++;
-    lion.id = id;
-    lions.push(lion);
-
-    res.send(lion);
+app.post("/lions",incrementIdMiddleware, function(req,res){
+    lions.push(req.body);
+    res.send(req.body);
 })
 
 app.put("/lions/:id", function(req,res){
@@ -57,6 +58,15 @@ app.delete("/lions/:id", function(req,res){
     res.json(lions);
 })
 
+app.use(function(err,req,res,next){
 
-app.listen(3000);
-console.log('on port 3000');
+    if(err){
+        res.status(500).send(err);
+    }
+    console.log('Error Middleware', err)
+}) // Error middle ware
+
+
+app.listen(3000, () =>{
+    console.log('Listening on port', 3000);
+});
